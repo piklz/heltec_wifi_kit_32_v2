@@ -15,6 +15,7 @@
 
    v001 [June 2024]
     - heltec oled battery monitor (esp3.0 fixed/updated and deprecated apis removed - adcAttachPin etc )
+    
    
 */
 
