@@ -11,7 +11,8 @@
     -by piklz
     -- github/piklz
       
-
+   v002 [Aug  2024]
+    - using multi click(onebutton.h) funcs with built-in hw button )
    v001 [June 2024]
     - heltec oled battery monitor (esp3.0 fixed/updated and deprecated apis removed - adcAttachPin etc )
     
@@ -21,9 +22,9 @@
 /*
  * @file Heltec_WifiKit32v2_oled_battery_monitor.ino
  * @author Piklz (@)
- * @brief  battery monitor using oled display
- * @version 0.1
- * @date 2024-06-18
+ * @brief  battery monitor demo using oled display
+ * @version 0.2
+ * @date 2024-08-8
  * 
  * @copyright Copyright (c) 2024
  * 
@@ -36,7 +37,6 @@
 #include "HT_SSD1306Wire.h"  // legacy include: `#include "SSD1306.h"`
 #include "HT_DisplayUi.h"
 #include "images.h"
-
 #include "OneButton.h"
 
 
@@ -165,6 +165,8 @@ void setup() {
   // link the doubleclick function to be called on a doubleclick event.
   button.attachDoubleClick(doubleClick);
 
+  // link the click function to be called on a doubleclick event.
+  button.attachClick(Click); //use as toggle
 
 
 
@@ -308,3 +310,27 @@ void doubleClick()
   ui.nextFrame();
 
 } // doubleClick
+
+
+
+bool displayIsOn = true;
+// this function will be called when the button was pressed 1 times in a short timeframe.
+void Click()
+
+{
+  
+  Serial.println("x1");
+
+  ledState = !ledState; // reverse the LED
+  digitalWrite(PIN_LED, ledState);
+
+  // Toggle display state
+  if (displayIsOn) {
+    display.displayOff();
+    displayIsOn = false;
+  } else {
+    display.displayOn();
+    displayIsOn = true;
+  }
+
+} // Click
