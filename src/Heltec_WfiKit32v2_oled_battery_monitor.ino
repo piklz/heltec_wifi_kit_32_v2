@@ -5,12 +5,11 @@
 ██████╔╝██║█████═╝░██║░░░░░░░███╔═╝
 ██╔═══╝░██║██╔═██╗░██║░░░░░██╔══╝░░
 ██║░░░░░██║██║░╚██╗███████╗███████╗
-╚═╝░░░░░╚═╝╚═╝░░╚═╝╚══════╝╚══════╝
+╚═╝░░░░░╚═╝╚═╝░░╚═╝╚══════╝╚══════╝ESP32
                                
     heltec [esp32] wifi-kit (v2) oled built-in lipo battery monitor
     -by piklz
     -- github/piklz
-
       
 
    v001 [June 2024]
@@ -19,7 +18,16 @@
    
 */
 
-
+/*
+ * @file Heltec_WifiKit32v2_oled_battery_monitor.ino
+ * @author Piklz (@)
+ * @brief  battery monitor using oled display
+ * @version 0.1
+ * @date 2024-06-18
+ * 
+ * @copyright Copyright (c) 2024
+ * 
+ */
 
 
 #include "Arduino.h"
@@ -29,13 +37,15 @@
 #include "HT_DisplayUi.h"
 #include "images.h"
 
+#include "OneButton.h"
+
 
 static SSD1306Wire display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED);  // addr , freq , i2c group , resolution , rst
 
 
-
+// lets add out vars here
 #define Fbattery 3700  //The default battery is 3700mv when the battery is fully charged.(using the Makerfocus 1000mah 1A discharge battery)
-#define ADC_READ_STABILIZE 10 // not sure if this is even useful yet..
+#define ADC_READ_STABILIZE 10 // not sure if this is even useful yet..as im using readMilliVolts
 
 int   batteryVoltage    =  0 ;
 int   batteryPercentage =  0 ;
@@ -46,10 +56,27 @@ float conversionFactor = 1.75542112 ;  // higher num the higher volts reads 1.84
 const float maxChargingVoltage = 4.2;
 const float minBatteryVoltage = 3.2;
 
-//Format the time so it looks pretty
+//Format the time so it looks pretty later
 char timeBuffer[9];
 unsigned long previousMillis = 0;  // Stores the last time the counter was updated
 const int updateInterval = 1000;  // Update the counter every 1 second (1000 milliseconds)
+
+
+
+
+//heltec boot button is gpio 0
+#define PIN_INPUT 0 
+// builtin white led is at pin 25
+#define PIN_LED 25 
+
+
+// Setup a new OneButton on pin PIN_INPUT
+// The 2. parameter activeLOW is true, because external wiring sets the button to LOW when pressed.
+OneButton button(PIN_INPUT, true);
+
+// current LED state, staring with LOW (0)
+int ledState = LOW;
+
 
 
 
@@ -60,11 +87,11 @@ void msOverlay(ScreenDisplay* display, DisplayUiState* state) {  //overlay keeps
   display->setTextAlignment(TEXT_ALIGN_RIGHT);
   display->setFont(ArialMT_Plain_10);
   //display->drawString(128, 10, String(millis()));
-  // Calculate the starting X-coordinate to center the text horizontally
-  int textWidth = display->getStringWidth(timeBuffer);
-  int startX = (128 - textWidth) / 2;  // Center the text horizontally
 
-  display->drawString(startX + 80, 25, "T:"+String(timeBuffer) );
+  // Calculate the starting X-coordinate to center the text horizontally
+  //int textWidth = display->getStringWidth(timeBuffer);
+  //int startX = (128 - textWidth) / 2;  // Center the text horizontally
+  //display->drawString(startX + 80, 25, "T:"+String(timeBuffer) );
 
   //display->drawXbm(114, 0, WIFI_width, WIFI_height, WIFI_bits);
 }
@@ -93,82 +120,27 @@ void drawFrame1(ScreenDisplay* display, DisplayUiState* state, int16_t x, int16_
   } else {
     display->drawXbm(x + 114, y + 40, BATLOW_width, BATLOW_height, BATLOW_bits);
   }
+  // Calculate the starting X-coordinate to center the text horizontally
+  int textWidth = display->getStringWidth(timeBuffer);
+  int startX = (128 - textWidth) / 2;  // Center the text horizontally
+  display->setTextAlignment(TEXT_ALIGN_RIGHT);
+  display->drawString(startX + 80, 25, "T:"+String(timeBuffer) );
 }
 
-
-/*void drawFrame1(ScreenDisplay *display, DisplayUiState* state, int16_t x, int16_t y) {
-  // draw an xbm image.
-  // Please note that everything that should be transitioned
-  // needs to be drawn relative to x and y
-
-  display->drawXbm(x + 34, y + 14, WiFi_Logo_width, WiFi_Logo_height, WiFi_Logo_bits);
-}
 
 
 void drawFrame2(ScreenDisplay *display, DisplayUiState* state, int16_t x, int16_t y) {
-  // Demonstrates the 3 included default sizes. The fonts come from SSD1306Fonts.h file
-  // Besides the default fonts there will be a program to convert TrueType fonts into this format
-  display->setTextAlignment(TEXT_ALIGN_LEFT);
-  display->setFont(ArialMT_Plain_10);
-  display->drawString(0 + x, 10 + y, "Arial 10");
-
-  display->setFont(ArialMT_Plain_16);
-  display->drawString(0 + x, 20 + y, "Arial 16");
-
-  display->setFont(ArialMT_Plain_24);
-  display->drawString(0 + x, 34 + y, "Arial 24");
-}
-
-void drawFrame3(ScreenDisplay *display, DisplayUiState* state, int16_t x, int16_t y) {
-  // Text alignment demo
-  display->setFont(ArialMT_Plain_10);
-
-  // The coordinates define the left starting point of the text
-  display->setTextAlignment(TEXT_ALIGN_LEFT);
-  display->drawString(0 + x, 11 + y, "Left aligned (0,10)");
-
-  // The coordinates define the center of the text
-  display->setTextAlignment(TEXT_ALIGN_CENTER);
-  display->drawString(64 + x, 22 + y, "Center aligned (64,22)");
-
-  // The coordinates define the right end of the text
-  display->setTextAlignment(TEXT_ALIGN_RIGHT);
-  display->drawString(128 + x, 33 + y, "Right aligned (128,33)");
-}
-
-void drawFrame4(ScreenDisplay *display, DisplayUiState* state, int16_t x, int16_t y) {
-  // Demo for drawStringMaxWidth:
-  // with the third parameter you can define the width after which words will be wrapped.
-  // Currently only spaces and "-" are allowed for wrapping
-  display->setTextAlignment(TEXT_ALIGN_LEFT);
-  display->setFont(ArialMT_Plain_10);
-  display->drawStringMaxWidth(0 + x, 10 + y, 128, "Lorem ipsum\n dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.");
+display->drawXbm(x , y, pixelpiklz_Ongo_Gablogian_width, pixelpiklz_Ongo_Gablogian_height, pixelpiklz_Ongo_Gablogian_bits);
 }
 
 
-
-void drawFrame5(ScreenDisplay *display, DisplayUiState* state, int16_t x, int16_t y) {
-
-}
-*/
-/*
-void VextON(void) {
-  pinMode(Vext, OUTPUT);
-  digitalWrite(Vext, LOW);
-}
-
-void VextOFF(void)  //Vext default OFF
-{
-  pinMode(Vext, OUTPUT);
-  digitalWrite(Vext, HIGH);
-}*/
 
 // This array keeps function pointers to all frames
 // frames are the single views that slide in
 //FrameCallback frames[] = { drawFrame1, drawFrame2, drawFrame3, drawFrame4, drawFrame5 };
-FrameCallback frames[] = { drawFrame1 };
+FrameCallback frames[] = { drawFrame1,drawFrame2 };
 // how many frames are there?
-int frameCount = 1;
+int frameCount = 2;
 
 // Overlays are statically drawn on top of a frame eg. a clock
 OverlayCallback overlays[] = { msOverlay };
@@ -181,6 +153,20 @@ int overlaysCount = 1;
 
 void setup() {
   Serial.begin(115200);
+
+
+
+   // enable the standard led on pin 13.
+  pinMode(PIN_LED, OUTPUT); // sets the digital pin as output
+
+  // enable the standard led on pin 13.
+  digitalWrite(PIN_LED, ledState);
+
+  // link the doubleclick function to be called on a doubleclick event.
+  button.attachDoubleClick(doubleClick);
+
+
+
 
   analogReadResolution(12);//default is 12 if not used -set the resolution to 12 bits (0-4095)
 
@@ -219,8 +205,15 @@ void setup() {
 
   // Flip display vertically
   //ui.display->flipScreenVertically();
-  
-  // diable auto transition to next frame
+
+  // Enable autotransition 
+  //ui.enableAutoTransition();
+
+  //Eet forward or backward transition
+  //ui.setAutoTransitionForwards();
+
+  // disable auto transition to next frame
+  //
   ui.disableAutoTransition();
 }
 
@@ -228,7 +221,12 @@ void setup() {
 void loop() {
 
   
+  // keep watching the push button:
+  button.tick();
+
+
   int remainingTimeBudget = ui.update();
+
   if (remainingTimeBudget > 0) {
     // You can do some work here
     // Don't do stuff if you are below your
@@ -248,15 +246,18 @@ void loop() {
       Serial.println(timeBuffer);  // Print the elapsed time to the serial monitor
       Serial.println();
 
-      //get info for oled display here//
+      //call my battery info func for oled display here//
       battery_read();
+
+
+
     
-  }
-
-
+         
+      }
+ 
 
     delay(remainingTimeBudget);
-    //ui.display->clear();
+
 
     
   }
@@ -265,25 +266,45 @@ void loop() {
 
 
 
-
-
-
-
+unsigned long previousMillis2 = 0;
 void battery_read() {
+  /*
+   * @brief function to read values from battery pin
+   * 
+   */
+   unsigned long currentMillis2 = millis();
   
-  batteryVoltage = analogReadMilliVolts(batteryVoltagePin) * conversionFactor ; //output:4500
-  delay(1000);
-  Serial.print("Battery VoltagemV: ");
-  Serial.print(batteryVoltage); // Print with 2 decimal places
-  Serial.println(" V");
-  //using this map(batteryVoltage, minBatteryVoltage, maxChargingVoltage, 0.0, 100.0) and constrain to 0-100 for Full%
-  batteryPercentage = constrain(map(batteryVoltage, 3200, 4200, 0, 100),0,100 );
-  batteryVoltFloat =(batteryVoltage) ;
-  Serial.print("Battery Percentage: ");
-  Serial.print(batteryPercentage, 1); // 1 decimal place
-  Serial.println("%");   
-  Serial.print("Battery Float for oled: ");
-  Serial.print(batteryVoltFloat,2);  //  2 decimal places
-  Serial.println();
   
+
+    if (currentMillis2 - previousMillis2 >= 5000 ) { //5000 = 5secs passed
+      previousMillis2 = currentMillis2;
+      batteryVoltage = analogReadMilliVolts(batteryVoltagePin) * conversionFactor ; //output:4500
+      //delay(1000);
+      Serial.print("Battery VoltagemV: ");
+      Serial.print(batteryVoltage); // Print with 2 decimal places
+      Serial.println(" V");
+      //using this map(batteryVoltage, minBatteryVoltage, maxChargingVoltage, 0.0, 100.0) and constrain to 0-100 for Full%
+      batteryPercentage = constrain(map(batteryVoltage, 3200, 4200, 0, 100),0,100 );
+      batteryVoltFloat =(batteryVoltage) ;
+      Serial.print("Battery Percentage: ");
+      Serial.print(batteryPercentage, 1); // 1 decimal place
+      Serial.println("%");   
+      Serial.print("Battery Float for oled: ");
+      Serial.print(batteryVoltFloat,2);  //  2 decimal places
+      Serial.println();
+    }
+      
  }
+
+// this function will be called when the button was pressed 2 times in a short timeframe.
+void doubleClick()
+{
+  Serial.println("x2");
+
+  ledState = !ledState; // reverse the LED
+  digitalWrite(PIN_LED, ledState);
+
+  //next frame on ui
+  ui.nextFrame();
+
+} // doubleClick
